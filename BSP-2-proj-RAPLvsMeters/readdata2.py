@@ -2,8 +2,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
 
-# Global variables with data from tables
-mass_threads= [1]+list(range(2, 66, 2))
+# Global variables with data about line voltage and tables
+mass_threads = [1]+list(range(2, 66, 2))
+THREADS_AM = len(mass_threads)
+LINE_VOLTAGE = 237.2
+NUMBER_OF_EXP = 30
+NUMBER_OF_BLOCKS = 5  # 1 original and 4 txact
+METER_FILES = 2
+RAPL_FILES = 1
+LENGTH_FOR_METER_FILES = int(THREADS_AM * NUMBER_OF_EXP/METER_FILES)
+LENGTH_FOR_RAPL_FILES = int(THREADS_AM * NUMBER_OF_EXP/RAPL_FILES)
 
 # DataMeters and DataMetersTime
 dm = pd.read_csv('dataMeters.csv', sep=';', usecols=['Reading', 'Sample', 'Start Time', 'Duration', 'Max Time', 'Max', 'Average', 'Min Time', 'Min', 'Description', 'Stop Time'])
@@ -61,9 +69,8 @@ def get_data_for_15(a, b, source_dm):
         # print("    ", start_a," --- ", end_a)
         for (start_b, end_b) in b:
             if start_a <= start_b and end_b <= end_a:
-                energy_ress[id_dict] +=[float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',','.')) * 237.2 * float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',','.'))]
-                # print(float(str(source_dm["Duration"][b.index((start_b, end_b))]).split(":")[2].replace(',','.')))
-                # print("    " * 2, start_b, " -- ", end_b, " ~ ", float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',', '.')), " * ", 237.2, " * ", float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',', '.')))
+                energy_ress[id_dict] +=[float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',','.')) * LINE_VOLTAGE * float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',','.'))]
+                # print("    " * 2, start_b, " -- ", end_b, " ~ ", float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',', '.')), " * ", LINE_VOLTAGE, " * ", float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',', '.')))
             if start_b > start_a and end_b > end_a:
                 b = b[b.index((start_b, end_b))-1:]
                 break
@@ -99,70 +106,67 @@ def get_res_data_rapl(dr_tu):
     return [i + j + k + t for (i, j, k, t) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])]
 
 
-def calc_avar(mass, source):
-    """ Adds, to the passed to the function list, averages for the 1...64 threads
+def calc_avar(source):
+    """ Returns a list with averages for the 1...64 threads for RAPL
 
-    @:param mass: The list to be changed
-    @:type mass: list
     @:param source: The list with data to be used
     @:type source: list
+    @:returns: A list with sums for each thread
+    @:rtype: list
     """
-    for j in range(33): mass.append(sum(list(source[j::33])) / ((len(source) / 33)))
-
+    mass = []
+    for i in range(THREADS_AM): mass.append(sum(list(source[i::THREADS_AM])) / ((len(source) / THREADS_AM)))
+    return mass
 
 # CALLING FUNCTIONS:
 
 # getting time frames in time format for DatMeters and DatMetersTime tables
-(a_dt_1,b_dt_1) = get_time_in_time(dm, dmt)
-(a_dt_2,b_dt_2) = get_time_in_time(dm2, dmt2)
+(a_dt_1, b_dt_1) = get_time_in_time(dm, dmt)
+(a_dt_2, b_dt_2) = get_time_in_time(dm2, dmt2)
 
 # getting the averages for the 15 blocks for two files and
 # saving them into a dictionary with key saying if it is original(1) or txact(>1)
-mega_mass_with_mega_data = {(i+1): (get_data_for_15(a_dt_1[495*i:495+495*i], b_dt_1, dm), get_data_for_15(a_dt_2[495 * i:495 + 495 * i], b_dt_2, dm2)) for i in range(5)}
+mass_with_ress_Meter = {(i+1): (get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1, dm), get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES * i:LENGTH_FOR_METER_FILES *(i+1)], b_dt_2, dm2)) for i in range(5)}
 
 # because we need average for 30 blocks just summing respectful results and divide by 2 (15+15 = 30 blocks)
-newMMWMD = {}
-for j in range(1, 6):
-    newMMWMD[j] = [(mega_mass_with_mega_data[j][0][i] + mega_mass_with_mega_data[j][1][i])/2 for i in range(33)]
+dict_with_Meter = {}
+for j in range(1, NUMBER_OF_BLOCKS+1):
+    dict_with_Meter[j] = [(mass_with_ress_Meter[j][0][i] + mass_with_ress_Meter[j][1][i])/2 for i in range(THREADS_AM)]
 
 # getting data from RAPL and calculating averages for all 30 blocks (5)
-mass_with_ress = get_res_data_rapl(dr)
+mass_with_ress_RAPL = get_res_data_rapl(dr)
 
-# print(len(mass_with_ress))  #4950
-mass_data_rapl_or =[]  # original
-mass_data_rapl_tx1 =[]  # txact
-mass_data_rapl_tx2 =[]  # txact
-mass_data_rapl_tx3 =[]  # txact
-mass_data_rapl_tx4 =[]  # txact
-calc_avar(mass_data_rapl_or,mass_with_ress[0:990])
-calc_avar(mass_data_rapl_tx1,mass_with_ress[990:1980])
-calc_avar(mass_data_rapl_tx2,mass_with_ress[1980:2970])
-calc_avar(mass_data_rapl_tx3,mass_with_ress[2970:3960])
-calc_avar(mass_data_rapl_tx4,mass_with_ress[3960:4950])
+dict_with_RAPL = {}
+for j in range(1,NUMBER_OF_BLOCKS+1):
+    dict_with_RAPL[j] = calc_avar(mass_with_ress_RAPL[LENGTH_FOR_RAPL_FILES*(j-1):LENGTH_FOR_RAPL_FILES*j])
 
 # Creating plots with all collected data
 figure, axis = plt.subplots(2)
 
 # METERS PLOT (TOP)
-axis[0].plot(mass_threads, newMMWMD[1], "b", label= "origin")
-axis[0].plot(mass_threads, newMMWMD[2], "r", label= "txact")
-axis[0].plot(mass_threads, newMMWMD[3], "r", label= "txact")
-axis[0].plot(mass_threads, newMMWMD[4], "r", label= "txact")
-axis[0].plot(mass_threads, newMMWMD[5], "r", label= "txact")
-axis[0].set_title("Meters data (origin blue) energy consumtion 30")
+axis[0].plot(mass_threads, dict_with_Meter[1], "b", label="original")
+axis[0].plot(mass_threads, dict_with_Meter[2], "r", label="txact")
+axis[0].plot(mass_threads, dict_with_Meter[3], "r", label="txact")
+axis[0].plot(mass_threads, dict_with_Meter[4], "r", label="txact")
+axis[0].plot(mass_threads, dict_with_Meter[5], "r", label="txact")
+axis[0].set_title("Meters data (origin blue) energy consumption 30")
 # axis[0].set_xlabel('1-64 threads')
 axis[0].set_ylabel('energy consumption (J)')
 axis[0].legend()
 
 # RAPL PLOT (BOTTOM)
-axis[1].plot(mass_threads, mass_data_rapl_or, "m", label= "origin")
-axis[1].plot(mass_threads, mass_data_rapl_tx1, "c", label= "txact")
-axis[1].plot(mass_threads, mass_data_rapl_tx2, "c", label= "txact")
-axis[1].plot(mass_threads, mass_data_rapl_tx3, "c", label= "txact")
-axis[1].plot(mass_threads, mass_data_rapl_tx4, "c", label= "txact")
+axis[1].plot(mass_threads, dict_with_RAPL[1], "m", label="original")
+axis[1].plot(mass_threads, dict_with_RAPL[2], "c", label="txact")
+axis[1].plot(mass_threads, dict_with_RAPL[3], "c", label="txact")
+axis[1].plot(mass_threads, dict_with_RAPL[4], "c", label="txact")
+axis[1].plot(mass_threads, dict_with_RAPL[5], "c", label="txact")
 # axis[1].set_title("RAPL data (origin magenta) energy consumtion 30")
-axis[1].set_xlabel('RAPL data (origin magenta) energy consumtion 30')
+axis[1].set_xlabel('RAPL data (origin magenta) energy consumption 30')
 axis[1].set_ylabel('energy consumption (J)')
 
 axis[1].legend()
 plt.show()
+
+
+
+
