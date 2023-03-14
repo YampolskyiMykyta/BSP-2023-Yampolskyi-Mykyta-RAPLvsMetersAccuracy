@@ -24,17 +24,9 @@ dmt2 = pd.read_csv('dataMetersTime2.csv', sep=',', usecols=['Configurations', 'S
 
 # DataRAPL
 dr = pd.read_csv('dataRAPL.csv', sep=',', usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations', 'n-queries', 'password-work-factor', 'Energy Cores', 'Energy Ram', 'Energy Gpu', 'Energy Pkg', 'Time (perf) (s)', 'Time (exec) (s)', 'Ratio time (%)', 'Power_Cores', 'Power_Ram', 'Power_Gpu', 'Power_Pkg'])
+## example
+dM = pd.read_csv('dataMETER.csv', sep=',', usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations', 'n-queries', 'password-work-factor', 'Energy Meter'])
 
-# DataDELTAS
-dD = pd.read_csv('dataDELTAS.csv', sep=',', usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations', 'n-queries', 'password-work-factor', 'Energy Delta'])
-
-# # General min-max
-# print(max(dD["Energy Delta"]))  # 295.23071600000026
-# print(min(dD["Energy Delta"]))  # 0.0270519999999407
-#
-# # Original min-max
-# print(max(dD["Energy Delta"][:990]))  # 193.29
-# print(min(dD["Energy Delta"][:990]))  # 0.1427760000002251
 
 def get_zip_startend_time(source, ind):
     """ Returns the time frames from the source table
@@ -99,6 +91,7 @@ def get_data_for_15(a, b, source_dm ,rewritefile = False, mid_val_th=tuple()):
         if (rewritefile):
             mid_val_th = mid_val_th + (sum(mid_val_th_calc),)
             mid_val_th_calc=[]
+            continue
         id_dict += 1 if id_dict == 1 else 2
         if id_dict == 66: id_dict = 1; cc += 1
     # return [sum(energy_ress[i])/len(energy_ress[i]) for i in mass_threads]
@@ -129,8 +122,8 @@ def get_res_data_rapl(dr_tu):
     @:returns: A list with sums
     @:rtype: list
     """
-    # return [i + j + k + t for (i, j, k, t) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])]
-    # return [i + j + k  for (i, j, k) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'])] # checking without Energy Pkg
+    ## return [i + j + k + t for (i, j, k, t) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])]
+    ## return [i + j + k  for (i, j, k) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'])] # checking without Energy Pkg
     return [j + k + t for (j, k, t) in zip( dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])] # checking without cores
 
 
@@ -147,18 +140,14 @@ def calc_avar(source):
     return mass
 
 
-def rewriteFileMETERandDeltas(a_dt_1, b_dt_1, a_dt_2, b_dt_2 ):
-    """ Rewrites data in files dataMETER and dataRAPL
+def rewriteFileMETERandDeltas():
+    """ Rewrites data in files dataMETER and dataRAPL """
+    # getting time frames in time format for DatMeters and DatMetersTime tables
+    (a_dt_1, b_dt_1) = get_time_in_time(dm, dmt)
+    (a_dt_2, b_dt_2) = get_time_in_time(dm2, dmt2)
+    # getting data from RAPL file to get deltas
+    dr_data = get_res_data_rapl(dr)
 
-       @:param a_dt_1: The list of start times for dataMetersTime
-       @:type a_dt_1: list
-       @:param b_dt_1: The list of end times frames for dataMetersTime
-       @:type b_dt_1: list
-       @:param a_dt_2: The list of start times for dataMetersTime2
-       @:type a_dt_2: list
-       @:param b_dt_2: The list of end times for dataMetersTime2
-       @:type b_dt_2: list
-       """
     with open("dataMETER.csv", 'w', encoding='utf-8') as file:
         with open("dataDELTAS.csv", 'w', encoding='utf-8') as file2:
             file.write("version,n-workers,n-secondary-workers,n-reservations,n-relations,n-queries,password-work-factor,Energy Meter\n")
@@ -168,6 +157,7 @@ def rewriteFileMETERandDeltas(a_dt_1, b_dt_1, a_dt_2, b_dt_2 ):
     for i in range(TRANS_MODEL):
         newtuple = get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1,dm, True, newtuple)
         newtuple = get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_2, dm2, True, newtuple)
+
     mt = 1
     with open("dataMETER.csv", 'a', encoding='utf-8') as file:
         with open("dataDELTAS.csv", 'a', encoding='utf-8') as file2:
@@ -175,59 +165,95 @@ def rewriteFileMETERandDeltas(a_dt_1, b_dt_1, a_dt_2, b_dt_2 ):
                 for mi in range(ind_for_mi*LENGTH_FOR_METER_FILES*2,(ind_for_mi+1)* LENGTH_FOR_METER_FILES*2):
                     energyM = newtuple[mi]
                     file.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{energyM}\n")
-                    file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{abs(energyM - (dr['Energy Ram'][mi] +dr['Energy Gpu'][mi] +dr['Energy Pkg'][mi]))  }\n")
+                    file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{abs(energyM - dr_data[mi])  }\n")
                     mt += 1 if mt == 1 else 2
                     mt =1 if mt not in mass_threads else mt
 
-# CALLING FUNCTIONS:
+def get_distribution(dD_frame):
+    dict_with_disbs={"<10":[],"10-50":[],"50-100":[],"100-200":[],">200":[]}
+    for i in dD_frame:
+        if i<10: dict_with_disbs["<10"]+=[i]
+        if i>10 and i <50: dict_with_disbs["10-50"]+=[i]
+        if i>=50 and i <100: dict_with_disbs["50-100"]+=[i]
+        if i>=100 and i <200: dict_with_disbs["100-200"]+=[i]
+        if i>=200: dict_with_disbs[">200"]+=[i]
+    return dict_with_disbs
 
-# getting time frames in time format for DatMeters and DatMetersTime tables
-(a_dt_1, b_dt_1) = get_time_in_time(dm, dmt)
-(a_dt_2, b_dt_2) = get_time_in_time(dm2, dmt2)
+def showMinMaxDisb(dD_frame):
+    print("max: ", max(dD_frame))
+    print("min: ", min(dD_frame))
+    dict_with_disbs = get_distribution(dD_frame)
+    print(f"\nless than 10: {len(dict_with_disbs['<10'])}\n10-50: {len(dict_with_disbs['10-50'])}\n50-100: {len(dict_with_disbs['50-100'])}\n100-200: {len(dict_with_disbs['100-200'])}\nMore than 200: {len(dict_with_disbs['>200'])}")
 
-# getting the averages for the 15 blocks for two files and
-# saving them into a dictionary with key saying if it is original(1) or txact(>1)
-mass_with_ress_Meter = {(i+1): (get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1, dm), get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES * i:LENGTH_FOR_METER_FILES *(i+1)], b_dt_2, dm2)) for i in range(5)}
 
-# because we need average for 30 blocks just summing respectful results and divide by 2 (15+15 = 30 blocks)
-dict_with_Meter = {}
-for j in range(1, TRANS_MODEL+1):
-    dict_with_Meter[j] = [(mass_with_ress_Meter[j][0][i] + mass_with_ress_Meter[j][1][i])/2 for i in range(THREADS_AM)]
+def get_everything_about_delta():
+    # DataDELTAS
+    dD = pd.read_csv('dataDELTAS.csv', sep=',',
+                     usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations',
+                              'n-queries', 'password-work-factor', 'Energy Delta'])
 
-# getting data from RAPL and calculating averages for all 30 blocks (5)
-mass_with_ress_RAPL = get_res_data_rapl(dr)
+    print(" --- ORIGINAL: ")
+    showMinMaxDisb(dD["Energy Delta"][:LENGTH_FOR_METER_FILES*2])
 
-dict_with_RAPL = {}
-for j in range(1,TRANS_MODEL+1):
-    dict_with_RAPL[j] = calc_avar(mass_with_ress_RAPL[LENGTH_FOR_RAPL_FILES*(j-1):LENGTH_FOR_RAPL_FILES*j])
+    for n in range(len(n_secondary_workers)-1):
+        print(f"\n --- TXACT-{n_secondary_workers[n+1]}: ")
+        showMinMaxDisb(dD["Energy Delta"][LENGTH_FOR_METER_FILES*(2)*(n+1):LENGTH_FOR_METER_FILES * (2)*(n+2)])
 
-# Creating plots with all collected data
-figure, axis = plt.subplots(2)
+    print("\n --- GENERAL: ")
+    showMinMaxDisb(dD["Energy Delta"])
 
-# METERS PLOT (TOP)
-# RAPL PLOT (BOTTOM)
+def show_plot():
+    """ Shows graphical representation of data from RAPL and METER"""
+    # getting the averages for the 15 blocks for two files and
+    # saving them into a dictionary with key saying if it is original(1) or txact(>1)
+    # mass_with_ress_Meter = {(i+1): (get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1, dm), get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES * i:LENGTH_FOR_METER_FILES *(i+1)], b_dt_2, dm2)) for i in range(5)}
+    #
+    # # because we need average for 30 blocks just summing respectful results and divide by 2 (15+15 = 30 blocks)
+    # dict_with_Meter = {}
+    # for j in range(1, TRANS_MODEL+1):
+    #     dict_with_Meter[j] = [(mass_with_ress_Meter[j][0][i] + mass_with_ress_Meter[j][1][i])/2 for i in range(THREADS_AM)]
 
-colors= ['b','r','g','c','m','indigo','k','y','darkorange']
+    ## example with data after calculations (problems with average)
+    ## mass_with_ress_METER = [i for i in dM["Energy Meter"]]
+    ##
+    ## dict_with_Meter = {}
+    ## for j in range(1,TRANS_MODEL+1):
+    ##     dict_with_Meter[j] = calc_avar(mass_with_ress_METER[LENGTH_FOR_RAPL_FILES*(j-1):LENGTH_FOR_RAPL_FILES*j])
+    ##
+    ## Result Nothing changed
 
-axis[0].plot(mass_threads, dict_with_Meter[1], colors[0], label="original")
-axis[1].plot(mass_threads, dict_with_RAPL[1], colors[0], label="original")
+    # getting data from RAPL and Meter and calculating averages for all 30 blocks (5)
 
-for i in range(1,TRANS_MODEL):
-    axis[0].plot(mass_threads, dict_with_Meter[i+1], colors[i], label=f"txact s{n_secondary_workers[i]}")
-    axis[1].plot(mass_threads, dict_with_RAPL[i+1], colors[i], label=f"txact s{n_secondary_workers[i]}")
+    mass_with_ress_RAPL,mass_with_ress_METER = get_res_data_rapl(dr),[i for i in dM["Energy Meter"]]
 
-axis[0].set_title("Meters data (origin blue) energy consumption 30")
-# axis[0].set_xlabel('1-64 threads')
-axis[0].set_ylabel('energy consumption (J)')
-axis[0].legend()
+    dict_with_Meter,dict_with_RAPL = {},{}
+    for j in range(1,TRANS_MODEL+1):
+        dict_with_RAPL[j] = calc_avar(mass_with_ress_RAPL[LENGTH_FOR_RAPL_FILES*(j-1):LENGTH_FOR_RAPL_FILES*j])
+        dict_with_Meter[j] = calc_avar(mass_with_ress_METER[LENGTH_FOR_RAPL_FILES * (j - 1):LENGTH_FOR_RAPL_FILES * j])
 
-# axis[1].set_title("RAPL data (origin magenta) energy consumtion 30")
-axis[1].set_xlabel('RAPL data (origin magenta) energy consumption 30')
-axis[1].set_ylabel('energy consumption (J)')
+    # Creating plots with all collected data
+    figure, axis = plt.subplots(2)
 
-axis[1].legend()
-plt.show()
+    # METERS PLOT (TOP)
+    # RAPL PLOT (BOTTOM)
+    # colors
+    colors= ['b','r','g','c','m','indigo','k','y','darkorange']
 
-# REWRITE DATA IN FILES dataMETER and dataDELTAS
+    axis[0].plot(mass_threads, dict_with_Meter[1], colors[0], label="original")
+    axis[1].plot(mass_threads, dict_with_RAPL[1], colors[0], label="original")
 
-#rewriteFileMETERandDeltas(a_dt_1, b_dt_1, a_dt_2, b_dt_2)
+    for i in range(1,TRANS_MODEL):
+        axis[0].plot(mass_threads, dict_with_Meter[i+1], colors[i], label=f"txact s{n_secondary_workers[i]}")
+        axis[1].plot(mass_threads, dict_with_RAPL[i+1], colors[i], label=f"txact s{n_secondary_workers[i]}")
+
+    axis[0].set_title("Meters data (origin blue) energy consumption 30")
+    # axis[0].set_xlabel('1-64 threads')
+    axis[0].set_ylabel('energy consumption (J)')
+    axis[0].legend()
+
+    # axis[1].set_title("RAPL data (origin magenta) energy consumtion 30")
+    axis[1].set_xlabel('RAPL data (origin magenta) energy consumption 30')
+    axis[1].set_ylabel('energy consumption (J)')
+
+    axis[1].legend()
+    plt.show()
