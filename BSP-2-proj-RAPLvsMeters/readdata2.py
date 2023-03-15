@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import datetime
+import glob
+import os
 
 # Global variables with data about line voltage and tables
 n_secondary_workers = [0,1,2,8,64]
@@ -14,18 +16,55 @@ RAPL_FILES = 1
 LENGTH_FOR_METER_FILES = int(THREADS_AM * NUMBER_OF_EXP/METER_FILES)
 LENGTH_FOR_RAPL_FILES = int(THREADS_AM * NUMBER_OF_EXP/RAPL_FILES)
 
-# DataMeters and DataMetersTime
-dm = pd.read_csv('dataMeters.csv', sep=';', usecols=['Reading', 'Sample', 'Start Time', 'Duration', 'Max Time', 'Max', 'Average', 'Min Time', 'Min', 'Description', 'Stop Time'])
-dmt = pd.read_csv('dataMetersTime.csv', sep=',', usecols=['Configurations', 'Start Time', 'Stop Time'])
+def get_columns_for_file(filename, sep):
+    with open(filename, 'r', encoding='utf-8') as file:
+        mass = file.readline().split(sep)
+        mass[-1]= mass[-1][:-1]
+        mass  = list(filter(lambda x: x!="",mass))
+        return mass
 
-# DataMeters2 and DataMetersTime2
-dm2 = pd.read_csv('dataMeters2.csv', sep=';', usecols=['Reading', 'Sample', 'Start Time', 'Duration', 'Max Time', 'Max', 'Average', 'Min Time', 'Min', 'Description', 'Stop Time'])
-dmt2 = pd.read_csv('dataMetersTime2.csv', sep=',', usecols=['Configurations', 'Start Time', 'Stop Time'])
+
+def get_sep(filename):
+    with open(filename, 'r', encoding='utf-8') as file:
+        for i in file.readline():
+            if not i.isalpha() and i != " ":
+                return i
+
+
+def get_lists_of_combo_Meters():
+    listfiles,dms_l,dmts_l=[],[],[]
+    for i in glob.glob(os.path.abspath('*.csv')): listfiles += [i.split("\\")[-1]]
+    listMeterfiles = list(filter(lambda x: x.startswith("dataMeters"), listfiles))
+    for i in listMeterfiles:
+        if i.startswith("dataMetersTime"): dmts_l.append(i)
+        else: dms_l.append(i)
+    megalist = []
+    for (t,m) in zip(dmts_l,dms_l):  megalist+=((t,get_sep(t)),(m,get_sep(m)))
+    return megalist
+
+
+def get_pandas_files_Meter():
+    files_with_seps = get_lists_of_combo_Meters()
+    pandas_f=[]
+    for (f,s) in files_with_seps:
+        usecols_l = get_columns_for_file(f, s)
+        pandas_f.append(pd.read_csv(f, sep=s, usecols=usecols_l))
+    return pandas_f
+
+list_with_pandas_files_meter = get_pandas_files_Meter()
+
+# DataMeters and DataMetersTime
+dmt_tup = tuple()
+dm_tup=tuple()
+for i in range(int(len(list_with_pandas_files_meter)/2)):
+    dmt_tup = dmt_tup+ (list_with_pandas_files_meter[2*i],)
+    dm_tup  =dm_tup+ (list_with_pandas_files_meter[2*i+1],)
+
 
 # DataRAPL
-dr = pd.read_csv('dataRAPL.csv', sep=',', usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations', 'n-queries', 'password-work-factor', 'Energy Cores', 'Energy Ram', 'Energy Gpu', 'Energy Pkg', 'Time (perf) (s)', 'Time (exec) (s)', 'Ratio time (%)', 'Power_Cores', 'Power_Ram', 'Power_Gpu', 'Power_Pkg'])
+dr = pd.read_csv('dataRAPL.csv', sep=",", usecols=get_columns_for_file('dataRAPL.csv',","))
 ## example
-dM = pd.read_csv('dataMETER.csv', sep=',', usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations', 'n-queries', 'password-work-factor', 'Energy Meter'])
+dM = pd.read_csv('dataMETER.csv', sep=',',usecols=get_columns_for_file('dataMETER.csv',",") )
 
 
 def get_zip_startend_time(source, ind):
@@ -143,8 +182,8 @@ def calc_avar(source):
 def rewriteFileMETERandDeltas():
     """ Rewrites data in files dataMETER and dataRAPL """
     # getting time frames in time format for DatMeters and DatMetersTime tables
-    (a_dt_1, b_dt_1) = get_time_in_time(dm, dmt)
-    (a_dt_2, b_dt_2) = get_time_in_time(dm2, dmt2)
+    (a_dt_1, b_dt_1) = get_time_in_time(dm_tup[0], dmt_tup[0])
+    (a_dt_2, b_dt_2) = get_time_in_time(dm_tup[1], dmt_tup[1])
     # getting data from RAPL file to get deltas
     dr_data = get_res_data_rapl(dr)
 
@@ -155,8 +194,8 @@ def rewriteFileMETERandDeltas():
 
     newtuple=tuple()
     for i in range(TRANS_MODEL):
-        newtuple = get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1,dm, True, newtuple)
-        newtuple = get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_2, dm2, True, newtuple)
+        newtuple = get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1,dm_tup[0], True, newtuple)
+        newtuple = get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_2, dm_tup[1], True, newtuple)
 
     mt = 1
     with open("dataMETER.csv", 'a', encoding='utf-8') as file:
@@ -169,6 +208,7 @@ def rewriteFileMETERandDeltas():
                     mt += 1 if mt == 1 else 2
                     mt =1 if mt not in mass_threads else mt
 
+
 def get_distribution(dD_frame):
     dict_with_disbs={"<10":[],"10-50":[],"50-100":[],"100-200":[],">200":[]}
     for i in dD_frame:
@@ -178,6 +218,7 @@ def get_distribution(dD_frame):
         if i>=100 and i <200: dict_with_disbs["100-200"]+=[i]
         if i>=200: dict_with_disbs[">200"]+=[i]
     return dict_with_disbs
+
 
 def showMinMaxDisb(dD_frame):
     print("max: ", max(dD_frame))
@@ -201,6 +242,7 @@ def get_everything_about_delta():
 
     print("\n --- GENERAL: ")
     showMinMaxDisb(dD["Energy Delta"])
+
 
 def show_plot():
     """ Shows graphical representation of data from RAPL and METER"""
