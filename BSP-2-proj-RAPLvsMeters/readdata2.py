@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import datetime
 import glob
 import os
+from colorama import Fore
 
 # Global variables with data about line voltage and tables
 n_secondary_workers = [0,1,2,8,64]
@@ -16,15 +17,32 @@ RAPL_FILES = 1
 LENGTH_FOR_METER_FILES = int(THREADS_AM * NUMBER_OF_EXP/METER_FILES)
 LENGTH_FOR_RAPL_FILES = int(THREADS_AM * NUMBER_OF_EXP/RAPL_FILES)
 
+
 def get_columns_for_file(filename, sep):
+    """ Gets the column names for a certain file
+
+    @:param filename: name of the file
+    @:type filename: string
+    @:param sep: separator between words
+    @:type sep: string
+    @:return mass: list of column names
+    @:rtype: list
+    """
     with open(filename, 'r', encoding='utf-8') as file:
         mass = file.readline().split(sep)
         mass[-1]= mass[-1][:-1]
-        mass  = list(filter(lambda x: x!="",mass))
+        mass = list(filter(lambda x: x!="",mass))
         return mass
 
 
 def get_sep(filename):
+    """ Gets the separator for a certain file
+
+    @:param filename: name of the file
+    @:type filename: string
+    @:return i: separator
+    @:rtype: string
+    """
     with open(filename, 'r', encoding='utf-8') as file:
         for i in file.readline():
             if not i.isalpha() and i != " ":
@@ -32,6 +50,11 @@ def get_sep(filename):
 
 
 def get_lists_of_combo_Meters():
+    """ Creates a list of tuples with file and its separator (for Time and Meter files)
+
+    @:return megalist: the list of tuples with file and its separator
+    @:rtype: list
+    """
     listfiles,dms_l,dmts_l=[],[],[]
     for i in glob.glob(os.path.abspath('*.csv')): listfiles += [i.split("\\")[-1]]
     listMeterfiles = list(filter(lambda x: x.startswith("dataMeters"), listfiles))
@@ -44,6 +67,11 @@ def get_lists_of_combo_Meters():
 
 
 def get_pandas_files_Meter():
+    """ Creates a list of files in pandas type
+
+    @:return pandas_f: list of files in pandas type
+    @:rtype: list
+    """
     files_with_seps = get_lists_of_combo_Meters()
     pandas_f=[]
     for (f,s) in files_with_seps:
@@ -58,13 +86,14 @@ dmt_tup = tuple()
 dm_tup=tuple()
 for i in range(int(len(list_with_pandas_files_meter)/2)):
     dmt_tup = dmt_tup+ (list_with_pandas_files_meter[2*i],)
-    dm_tup  =dm_tup+ (list_with_pandas_files_meter[2*i+1],)
+    dm_tup = dm_tup+ (list_with_pandas_files_meter[2*i+1],)
 
 
+sep_for_RMD = get_sep('dataRAPL.csv')
 # DataRAPL
-dr = pd.read_csv('dataRAPL.csv', sep=",", usecols=get_columns_for_file('dataRAPL.csv',","))
-## example
-dM = pd.read_csv('dataMETER.csv', sep=',',usecols=get_columns_for_file('dataMETER.csv',",") )
+dR = pd.read_csv('dataRAPL.csv', sep=sep_for_RMD, usecols=get_columns_for_file('dataRAPL.csv',sep_for_RMD))
+dM = pd.read_csv('dataMETER.csv', sep=sep_for_RMD,usecols=get_columns_for_file('dataMETER.csv',sep_for_RMD) )
+dD = pd.read_csv('dataDELTAS.csv', sep=sep_for_RMD,usecols=get_columns_for_file('dataDELTAS.csv',sep_for_RMD))
 
 
 def get_zip_startend_time(source, ind):
@@ -185,7 +214,7 @@ def rewriteFileMETERandDeltas():
     (a_dt_1, b_dt_1) = get_time_in_time(dm_tup[0], dmt_tup[0])
     (a_dt_2, b_dt_2) = get_time_in_time(dm_tup[1], dmt_tup[1])
     # getting data from RAPL file to get deltas
-    dr_data = get_res_data_rapl(dr)
+    dr_data = get_res_data_rapl(dR)
 
     with open("dataMETER.csv", 'w', encoding='utf-8') as file:
         with open("dataDELTAS.csv", 'w', encoding='utf-8') as file2:
@@ -210,38 +239,50 @@ def rewriteFileMETERandDeltas():
 
 
 def get_distribution(dD_frame):
-    dict_with_disbs={"<10":[],"10-50":[],"50-100":[],"100-200":[],">200":[]}
+    """ Creates a dictionary with amount of energies for each frame (10>,10-50,...,200<)
+
+    @:param dD_frame: the frame to be checked
+    @:type dD_frame: pandas
+    @:return dict_with_disbs: the dictionary with amount of energies for each frame
+    @:rtype: dictionary
+    """
+    dict_with_disbs={"10 >":[],"10-50":[],"50-100":[],"100-200":[],"200 <":[]}
     for i in dD_frame:
-        if i<10: dict_with_disbs["<10"]+=[i]
+        if i<10: dict_with_disbs["10 >"]+=[i]
         if i>10 and i <50: dict_with_disbs["10-50"]+=[i]
         if i>=50 and i <100: dict_with_disbs["50-100"]+=[i]
         if i>=100 and i <200: dict_with_disbs["100-200"]+=[i]
-        if i>=200: dict_with_disbs[">200"]+=[i]
+        if i>=200: dict_with_disbs["200 <"]+=[i]
     return dict_with_disbs
 
 
-def showMinMaxDisb(dD_frame):
-    print("max: ", max(dD_frame))
-    print("min: ", min(dD_frame))
-    dict_with_disbs = get_distribution(dD_frame)
-    print(f"\nless than 10: {len(dict_with_disbs['<10'])}\n10-50: {len(dict_with_disbs['10-50'])}\n50-100: {len(dict_with_disbs['50-100'])}\n100-200: {len(dict_with_disbs['100-200'])}\nMore than 200: {len(dict_with_disbs['>200'])}")
+def print_for_each_in_RMD(frame):
+    """ Prints min, max and distribution for a certain frame
+
+        @:param frame: the list with first and last indices
+        @:type frame: list
+        """
+    datamass=[get_res_data_rapl(dR[frame[0]:frame[1]]),dM["Energy Meter"][frame[0]:frame[1]],dD["Energy Delta"][frame[0]:frame[1]]]
+    print("\n"," "*15,"RAPL"," "*16,"METER"," "*16,"DELTA")
+    print("max: ",'{:>22}'.format( max(datamass[0] ))  ,  '{:>22}'.format(max(datamass[1])), '{:>22}'.format(max(datamass[2])))
+    print("min: ", '{:>22}'.format( min(datamass[0] )),'{:>22}'.format( min(datamass[1] )),'{:>22}'.format( min(datamass[2])))
+    print()
+    dict_with_disbs1,dict_with_disbs2,dict_with_disbs3 = get_distribution(datamass[0]),get_distribution(datamass[1]),get_distribution(datamass[2])
+    for i in ["10 >", "10-50", "50-100", "100-200", "200 <"]:
+        print('{:<18}'.format(f"{i}: "), '{:>9}'.format( len(dict_with_disbs1[i])), '{:>22}'.format( len(dict_with_disbs2[i])),'{:>22}'.format( len(dict_with_disbs3[i])))
 
 
-def get_everything_about_delta():
-    # DataDELTAS
-    dD = pd.read_csv('dataDELTAS.csv', sep=',',
-                     usecols=['version', 'n-workers', 'n-secondary-workers', 'n-reservations', 'n-relations',
-                              'n-queries', 'password-work-factor', 'Energy Delta'])
-
-    print(" --- ORIGINAL: ")
-    showMinMaxDisb(dD["Energy Delta"][:LENGTH_FOR_METER_FILES*2])
-
+def get_everything_about_RMD():
+    """ Prints min, max and distribution for RAPL, Meter and Deltas for original and txacts """
+    colors = [Fore.BLUE, Fore.RED, Fore.GREEN, Fore.CYAN, Fore.MAGENTA,Fore.YELLOW]
+    print(colors[0] + " --- ORIGINAL: ","-"*59)
+    print_for_each_in_RMD([0,LENGTH_FOR_METER_FILES*2])
     for n in range(len(n_secondary_workers)-1):
-        print(f"\n --- TXACT-{n_secondary_workers[n+1]}: ")
-        showMinMaxDisb(dD["Energy Delta"][LENGTH_FOR_METER_FILES*(2)*(n+1):LENGTH_FOR_METER_FILES * (2)*(n+2)])
+        print(colors[n+1] + f"\n --- TXACT-{n_secondary_workers[n+1]}: ","-"*59)
+        print_for_each_in_RMD([LENGTH_FOR_METER_FILES*(2)*(n+1), LENGTH_FOR_METER_FILES * (2)*(n+2)])
 
-    print("\n --- GENERAL: ")
-    showMinMaxDisb(dD["Energy Delta"])
+    print(colors[-1]+ "\n --- GENERAL: ","-"*59)
+    print_for_each_in_RMD([0,LENGTH_FOR_METER_FILES*2*5])
 
 
 def show_plot():
@@ -266,7 +307,7 @@ def show_plot():
 
     # getting data from RAPL and Meter and calculating averages for all 30 blocks (5)
 
-    mass_with_ress_RAPL,mass_with_ress_METER = get_res_data_rapl(dr),[i for i in dM["Energy Meter"]]
+    mass_with_ress_RAPL,mass_with_ress_METER = get_res_data_rapl(dR),[i for i in dM["Energy Meter"]]
 
     dict_with_Meter,dict_with_RAPL = {},{}
     for j in range(1,TRANS_MODEL+1):
