@@ -191,8 +191,8 @@ def get_res_data_rapl(dr_tu):
     @:rtype: list
     """
     ## return [i + j + k + t for (i, j, k, t) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])]
-    ## return [i + j + k  for (i, j, k) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'])] # checking without Energy Pkg
-    return [j + k + t for (j, k, t) in zip( dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])] # checking without cores
+    ## return [i + j + k  for (i, j, k) in zip(dr_tu['Energy Cores'], dr_tu['Energy Ram'], dr_tu['Energy Gpu'])]  # checking without Energy Pkg
+    return [j + k + t for (j, k, t) in zip( dr_tu['Energy Ram'], dr_tu['Energy Gpu'], dr_tu['Energy Pkg'])]  # checking without cores
 
 
 def calc_avar(source):
@@ -270,6 +270,7 @@ def print_for_each_in_RMD(frame):
     dict_with_disbs1,dict_with_disbs2,dict_with_disbs3 = get_distribution(datamass[0]),get_distribution(datamass[1]),get_distribution(datamass[2])
     for i in ["10 >", "10-50", "50-100", "100-200", "200 <"]:
         print('{:<18}'.format(f"{i}: "), '{:>9}'.format( len(dict_with_disbs1[i])), '{:>22}'.format( len(dict_with_disbs2[i])),'{:>22}'.format( len(dict_with_disbs3[i])))
+    print("\nAvr: ", '{:>22}'.format( sum(datamass[0])/len(datamass[0])),'{:>22}'.format( sum(datamass[1])/len(datamass[1])),'{:>22}'.format( sum(datamass[2])/len(datamass[2])))
 
 
 def get_everything_about_RMD():
