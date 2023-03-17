@@ -88,7 +88,6 @@ for i in range(int(len(list_with_pandas_files_meter)/2)):
     dmt_tup = dmt_tup+ (list_with_pandas_files_meter[2*i],)
     dm_tup = dm_tup+ (list_with_pandas_files_meter[2*i+1],)
 
-
 sep_for_RMD = get_sep('dataRAPL.csv')
 # DataRAPL
 dR = pd.read_csv('dataRAPL.csv', sep=sep_for_RMD, usecols=get_columns_for_file('dataRAPL.csv',sep_for_RMD))
@@ -256,21 +255,36 @@ def get_distribution(dD_frame):
     return dict_with_disbs
 
 
+RMDe = [get_res_data_rapl(dR),dM["Energy Meter"],dD["Energy Delta"]]
+
 def print_for_each_in_RMD(frame):
     """ Prints min, max and distribution for a certain frame
 
         @:param frame: the list with first and last indices
         @:type frame: list
         """
-    datamass=[get_res_data_rapl(dR[frame[0]:frame[1]]),dM["Energy Meter"][frame[0]:frame[1]],dD["Energy Delta"][frame[0]:frame[1]]]
-    print("\n"," "*15,"RAPL"," "*16,"METER"," "*16,"DELTA")
-    print("max: ",'{:>22}'.format( max(datamass[0] ))  ,  '{:>22}'.format(max(datamass[1])), '{:>22}'.format(max(datamass[2])))
-    print("min: ", '{:>22}'.format( min(datamass[0] )),'{:>22}'.format( min(datamass[1] )),'{:>22}'.format( min(datamass[2])))
+    datamass = [i[frame[0]:frame[1]] for i in RMDe]
+    print("\n"," "*19,"RAPL"," "*16,"METER"," "*15,"DELTA")
+
+    print("max:     ", end="")
+    for i in datamass: print('{:>22}'.format(max(i)), end="")
+
+    print("\nmin:     ", end="")
+    for i in datamass: print('{:>22}'.format(min(i)), end="")
     print()
-    dict_with_disbs1,dict_with_disbs2,dict_with_disbs3 = get_distribution(datamass[0]),get_distribution(datamass[1]),get_distribution(datamass[2])
+
+    dict_with_disbs = [get_distribution(i) for i in datamass]
     for i in ["10 >", "10-50", "50-100", "100-200", "200 <"]:
-        print('{:<18}'.format(f"{i}: "), '{:>9}'.format( len(dict_with_disbs1[i])), '{:>22}'.format( len(dict_with_disbs2[i])),'{:>22}'.format( len(dict_with_disbs3[i])))
-    print("\nAvr: ", '{:>22}'.format( sum(datamass[0])/len(datamass[0])),'{:>22}'.format( sum(datamass[1])/len(datamass[1])),'{:>22}'.format( sum(datamass[2])/len(datamass[2])))
+        print('\n{:<9}'.format(f"{i}: "),end="")
+        for j in dict_with_disbs: print('{:>22}'.format( len(j[i])),end="")
+
+    means = [sum(i)/len(i) for i in datamass]
+    print("\n\nMean:    ",end="")
+    for i in means: print('{:>22}'.format(i), end="")
+
+    deviations = [sum([pow((i-means[j]),2) for i in datamass[j]])/(LENGTH_FOR_METER_FILES*2) for j in range(len(datamass)) ]
+    print("\nSt. Dev: ", end="")
+    for i in deviations: print('{:>22}'.format(pow(i,0.5)), end="")
 
 
 def get_everything_about_RMD():
@@ -279,10 +293,10 @@ def get_everything_about_RMD():
     print(colors[0] + " --- ORIGINAL: ","-"*59)
     print_for_each_in_RMD([0,LENGTH_FOR_METER_FILES*2])
     for n in range(len(n_secondary_workers)-1):
-        print(colors[n+1] + f"\n --- TXACT-{n_secondary_workers[n+1]}: ","-"*59)
+        print(colors[n+1] + f"\n\n --- TXACT-{n_secondary_workers[n+1]}:  ","-"*59)
         print_for_each_in_RMD([LENGTH_FOR_METER_FILES*(2)*(n+1), LENGTH_FOR_METER_FILES * (2)*(n+2)])
 
-    print(colors[-1]+ "\n --- GENERAL: ","-"*59)
+    print(colors[-1]+ "\n\n --- GENERAL:   ","-"*59)
     print_for_each_in_RMD([0,LENGTH_FOR_METER_FILES*2*5])
 
 
