@@ -1,0 +1,28 @@
+{
+    "id": "58B90CA6",
+    "path": null,
+    "project_path": null,
+    "type": "object_explorer",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1679429165441.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "id": "8a3ba45ec6814bc78997829c9ff9aeda",
+        "name": "list_ps",
+        "title": "list_ps",
+        "language": "R",
+        "source_window_id": "",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 16044309900165185,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1679429165441,
+    "read_only": false,
+    "read_only_alternatives": []
+}
