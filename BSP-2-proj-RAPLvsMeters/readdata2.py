@@ -357,10 +357,33 @@ def show_plot():
     plt.show()
 
 
-def get_plot_orig_time_rapl():
-    """ Shows speed-up for each number of threads in RAPL """
+def get_plot_orig_time_rapl_avar():
+    """ Shows speed-up for each number of threads in RAPL using averages """
     dict_with_RAPL,txacts = {},{}
     for j in range(1, TRANS_MODEL + 1): dict_with_RAPL[j] = calc_avar(list(dR["Time (exec) (s)"][LENGTH_FOR_RAPL_FILES * (j - 1): LENGTH_FOR_RAPL_FILES * j]))
+    orig_mass=[i/dict_with_RAPL[1][0] for i in dict_with_RAPL[1]]
+    for t in range(1, TRANS_MODEL): txacts[t] = [(j/i)*c  for (i,j,c) in zip(dict_with_RAPL[t+1],dict_with_RAPL[1], orig_mass)]
+
+    colors = ['b', 'r', 'g', 'c', 'm', 'indigo', 'k', 'y', 'darkorange']
+    plt.plot(mass_threads,orig_mass,colors[0],label=f"original")
+    for i in range(1, len(txacts)+1):
+        plt.plot(mass_threads,txacts[i],colors[i],label=f"txact-{n_secondary_workers[i]}")
+    plt.xlabel('number of threads')
+    plt.ylabel('Speed-up')
+    plt.title("RAPL speed-up check")
+    plt.legend()
+    plt.show()
+
+def get_plot_orig_time_rapl_median():
+    """ Shows speed-up for each number of threads in RAPL using medians """
+    dict_with_RAPL,txacts = {i:[] for i in range(1,TRANS_MODEL+1)},{}
+    for j in range(1, TRANS_MODEL + 1):
+        mass = list(dR["Time (exec) (s)"][LENGTH_FOR_RAPL_FILES * (j - 1): LENGTH_FOR_RAPL_FILES * j])
+        for p in range(THREADS_AM):
+            f = mass[p::33]
+            f.sort()
+            dict_with_RAPL[j] += [f[int((len(f)-1)/2)]]
+
     orig_mass=[i/dict_with_RAPL[1][0] for i in dict_with_RAPL[1]]
     for t in range(1, TRANS_MODEL): txacts[t] = [(j/i)*c  for (i,j,c) in zip(dict_with_RAPL[t+1],dict_with_RAPL[1], orig_mass)]
 
