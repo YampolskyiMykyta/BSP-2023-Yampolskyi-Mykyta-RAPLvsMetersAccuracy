@@ -396,3 +396,46 @@ def get_plot_orig_time_rapl_median():
     plt.title("RAPL speed-up check")
     plt.legend()
     plt.show()
+
+
+def check_data_before_meter_start(dmt,dM_data):
+    """ Calculates average energy consumption before the start of the experiment
+
+            @:param dmt: table with all Meters execution description
+            @:type dmt: pandas type
+            @:param dM_data: table with all Meters execution results
+            @:type dM_data: pandas type
+            @returns average energy consumption obtained before the start of the experiment
+        """
+    timelim1,list_with_st_time,energy_consumed = datetime.datetime.strptime( dmt["Start Time"][0].split()[3], '%H:%M:%S'),[],[]
+    for i in dM_data.loc:
+        if datetime.datetime.strptime(i["Stop Time"].split()[1], '%H:%M:%S,%f') > timelim1:
+            break
+        energy_consumed += [float(str(i["Average"]).replace(',', '.')) * LINE_VOLTAGE * float(str(i["Duration"]).split(":")[2].replace(',', '.'))]
+    return sum(energy_consumed)/len(energy_consumed)
+
+def check_data_after_meter_start(dmt,dM_data):
+    """ Calculates average energy consumption after the start of the experiment
+
+        @:param dmt: table with all Meters execution description
+        @:type dmt: pandas type
+        @:param dM_data: table with all Meters execution results
+        @:type dM_data: pandas type
+        @returns average energy consumption obtained after the start of the experiment
+    """
+    timelim1,list_with_st_time,energy_consumed = datetime.datetime.strptime(dmt.values[-1][2].split()[3], '%H:%M:%S'),[],[]
+    for i in dM_data.values[::-1][1:]:
+        if datetime.datetime.strptime(i[2].split()[1], '%H:%M:%S,%f') < timelim1:
+            break
+        energy_consumed += [float(str(i[6]).replace(',', '.')) * LINE_VOLTAGE * float(str(i[3]).split(":")[2].replace(',', '.'))]
+    return sum(energy_consumed)/len(energy_consumed)
+
+
+def get_data_before_and_after():
+    """ Displays the average energy consumption obtained before and after Meter experiment """
+    print("\nBefore")
+    for dmt,dm in zip(dmt_tup,dm_tup):
+        print(check_data_before_meter_start(dmt,dm))
+    print("\nAfter")
+    for dmt, dm in zip(dmt_tup, dm_tup):
+        print(check_data_after_meter_start(dmt, dm))
