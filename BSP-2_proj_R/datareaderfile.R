@@ -316,44 +316,38 @@ test(unlist(get_list_with_avar_workers_Meter(1)),unlist(get_list_with_avar_worke
 test(RandM$Meter,RandM$Total) # --
 
 
+
 # ------------------------------ METER -----------------------------
+
+get_some_nsw_data <- function(nsw,nw,who,what){
+    # Subset data for current number of threads
+    new_dat <- filter(who, n.secondary.workers == nsw,n.workers==nw)[what]
+    
+    shapiro_test <- shapiro.test(unlist(new_dat))
+    print(shapiro_test$p.value )
+    
+    qqnorm( unlist(new_dat))
+    qqline(unlist(new_dat))
+}
 
 # WORKING WITH ORIGINAL:
 
 # Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
 # with q-q plots
-for(j in list(1,2,5,17,33)){
-  list_ps <- list()
-  for (i in 1:30) {
-    # Subset data for current number of threads
-    new_dat <- dataMeter[j+ 33*(i-1),]
-    list_ps[i] <- new_dat$Energy.Meter
-  }
-  shapiro_test <- shapiro.test(unlist(list_ps))
-  print(shapiro_test$p.value )
-  
-  qqnorm( unlist(list_ps))
-  qqline(unlist(list_ps))
+
+for(p in list(1, 2, 8,32, 64)){
+  get_some_nsw_data(0,p,dataMeter,"Energy.Meter")
 }
 
 # WORKING WITH TXACTs:
 
 # Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
 # with q-q plots
-for(p in 1:4){
-for(j in list(1,2,5,17,33)){
-  list_ps <- list()
-  for (i in 1:30) {
-    # Subset data for current number of threads
-    new_dat <- dataMeter[size_chunk*p+ j+ 33*(i-1),]
-    list_ps[i] <- new_dat$Energy.Meter
+
+for(k in list(1, 2, 8, 64)){
+  for(p in list(1, 2, 8,32, 64)){
+    get_some_nsw_data(k,p,dataMeter,"Energy.Meter")
   }
-  shapiro_test <- shapiro.test(unlist(list_ps))
-  print(shapiro_test$p.value )
-  
-  qqnorm( unlist(list_ps))
-  qqline(unlist(list_ps))
-}
   print("-----------")
 }
 
@@ -364,35 +358,22 @@ for(j in list(1,2,5,17,33)){
 
 # Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
 # with q-q plots
-for(j in list(1,2,5,17,33)){
-  list_ps <- list()
-  for (i in 1:30) {
-    # Subset data for current number of threads
-    new_dat <- subset_data_rapl[j+ 33*(i-1),]
-    list_ps[i] <- new_dat$Total
-  }
-  shapiro_test <- shapiro.test(unlist(list_ps))
-  print(shapiro_test$p.value )
+
+for(p in list(1, 2, 8,32, 64)){
+  get_some_nsw_data(0,p,subset_data_rapl,"Total")
 }
 
-# WORKING WITH TXACT8:
+# WORKING WITH TXACTs:
 
 # Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
-# with q-q plots
-for(p in 1:4){
-  for(j in list(1,2,5,17,33)){
-    list_ps <- list()
-    for (i in 1:30) {
-      # Subset data for current number of threads
-      new_dat <- subset_data_rapl[size_chunk*p+ j+ 33*(i-1),]
-      list_ps[i] <- new_dat$Total
-    }
-    shapiro_test <- shapiro.test(unlist(list_ps))
-    print(shapiro_test$p.value )
+# with q-q plots.
+
+for(k in list(1, 2, 8, 64)){
+  for(p in list(1, 2, 8,32, 64)){
+    get_some_nsw_data(k,p,subset_data_rapl,"Total")
   }
   print("-----------")
 }
-
 
 # ------------------------------- METER vs RAPL correlation ----------------------
 
@@ -400,12 +381,11 @@ for(p in 1:4){
 # check correlation with Pearson and spearman for threads 1,2,8,32,64
 
 get_pear_t_spear_f_plot <- function(j,who){
-  list_dm <- list()
   list_dr <- list()
-  for (i in 1:30) {
-    list_dm[i] <- dataMeter[j+ 33*(i-1),"Energy.Meter"]
-    list_dr[i] <- subset_data_rapl[j+ 33*(i-1),"Total"]
-  }
+
+  list_dm <- filter(dataMeter, n.secondary.workers == 0,n.workers==j)$Energy.Meter
+  list_dr <- filter(subset_data_rapl, n.secondary.workers == 0,n.workers==j)$Total
+
   print(cor(unlist(list_dm),unlist(list_dr),method = c("pearson")))
   print(cor(unlist(list_dm),unlist(list_dr),method = c("spearman")))
   print("--")
@@ -416,35 +396,35 @@ get_pear_t_spear_f_plot <- function(j,who){
   my_data$Meter <- unlist(list_dm)
   my_data$Rapl <- unlist(list_dr)
   
- 
+  
   # plotting 
   # pearson
   if(who == TRUE){
-  ggscatter(my_data, x = "Meter", y = "Rapl", 
-            add = "reg.line", conf.int = TRUE, 
-            cor.coef = TRUE, cor.method = "pearson",
-            xlab = "Joules M p", ylab = "Joules R p")
+    ggscatter(my_data, x = "Meter", y = "Rapl", 
+              add = "reg.line", conf.int = TRUE, 
+              cor.coef = TRUE, cor.method = "pearson",
+              xlab = "Joules M p", ylab = "Joules R p")
   }
   else{
-  # spearman
-  ggscatter(my_data, x = "Meter", y = "Rapl",
-            add = "reg.line", conf.int = TRUE,
-            cor.coef = TRUE, cor.method = "spearman",
-            xlab = "Joules M s", ylab = "Joules R s")
+    # spearman
+    ggscatter(my_data, x = "Meter", y = "Rapl",
+              add = "reg.line", conf.int = TRUE,
+              cor.coef = TRUE, cor.method = "spearman",
+              xlab = "Joules M s", ylab = "Joules R s")
   }
 }
 
-# threads 1,2,8,32,64 => index: 1,2,5,17,33
+# threads 1,2,8,32,64
 # pearson
-get_pear_t_spear_f_plot(1,TRUE)
+get_pear_t_spear_f_plot(1,TRUE) #ggscatter does not like loops
 get_pear_t_spear_f_plot(2,TRUE)
-get_pear_t_spear_f_plot(5,TRUE)
-get_pear_t_spear_f_plot(17,TRUE)
-get_pear_t_spear_f_plot(33,TRUE)
+get_pear_t_spear_f_plot(8,TRUE)
+get_pear_t_spear_f_plot(32,TRUE)
+get_pear_t_spear_f_plot(64,TRUE)
 
 # spearman
 get_pear_t_spear_f_plot(1,FALSE)
 get_pear_t_spear_f_plot(2,FALSE)
-get_pear_t_spear_f_plot(5,FALSE)
-get_pear_t_spear_f_plot(17,FALSE)
-get_pear_t_spear_f_plot(33,FALSE)
+get_pear_t_spear_f_plot(8,FALSE)
+get_pear_t_spear_f_plot(32,FALSE)
+get_pear_t_spear_f_plot(64,FALSE)
