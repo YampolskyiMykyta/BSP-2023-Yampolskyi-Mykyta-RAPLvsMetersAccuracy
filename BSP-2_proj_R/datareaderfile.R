@@ -3,8 +3,8 @@
 # install.packages("gridExtra")
 # install.packages("ggpubr")
 # install.packages("psych")
-library(ggplot2)
 library(dplyr)
+library(ggplot2)
 library(gridExtra)
 library("ggpubr")
 library(psych)
@@ -305,28 +305,22 @@ qqnorm(RandM$Total)
 qqline(RandM$Total)
 
 
-# Hyp_testing
-test <- function(data1, data2) {
-  wilcox.test(data1, data2)
-}
-
-test(unlist(get_list_with_avar_workers_Meter(1)),unlist(get_list_with_avar_workers_Rapl(1)))
-
-test(RandM$Meter,RandM$Total) # --
-
-
-
 # ------------------------------ METER -----------------------------
 
 get_some_nsw_data <- function(nsw,nw,who,what){
     # Subset data for current number of threads
     new_dat <- filter(who, n.secondary.workers == nsw,n.workers==nw)[what]
     
-    shapiro_test <- shapiro.test(unlist(new_dat))
-    print(shapiro_test$p.value )
+    # if(nw==1){print(new_dat)}
     
+    shapiro_test <- shapiro.test(unlist(new_dat))
+    if(shapiro_test$p.value > 0.05){cat(nw, shapiro_test$p.value,"\n" )}
+    else{cat(nw, shapiro_test$p.value,"  -","\n" )}
+    
+    if(shapiro_test$p.value > 0.05){
     qqnorm( unlist(new_dat))
     qqline(unlist(new_dat))
+    }
 }
 
 # WORKING WITH ORIGINAL:
@@ -334,8 +328,8 @@ get_some_nsw_data <- function(nsw,nw,who,what){
 # Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
 # with q-q plots
 
-for(p in list(1, 2, 8,32, 64)){
-  get_some_nsw_data(0,p,dataMeter,"Energy.Meter")
+for(p in workers){
+  get_some_nsw_data(0,p,dataMeter_ver2,"Energy.Meter")
 }
 
 # WORKING WITH TXACTs:
@@ -344,10 +338,11 @@ for(p in list(1, 2, 8,32, 64)){
 # with q-q plots
 
 for(k in list(1, 2, 8, 64)){
-  for(p in list(1, 2, 8,32, 64)){
+  cat("\n\n---SEC.WORK ",k," ---\n\n")
+  for(p in workers){
     get_some_nsw_data(k,p,dataMeter,"Energy.Meter")
   }
-  print("-----------")
+  
 }
 
 
@@ -374,27 +369,26 @@ for(k in list(1, 2, 8, 64)){
   print("-----------")
 }
 
+
 # ------------------------------- METER vs RAPL correlation ----------------------
 
 # WORKING WITH ORIGINAL:
 # check correlation with Pearson and spearman for threads 1,2,8,32,64
 
-get_pear_t_spear_f_plot <- function(j,who){
+get_pear_t_spear_f_plot <- function(nsw,nw,who,Meterdataset){
   list_dr <- list()
 
-  list_dm <- filter(dataMeter, n.secondary.workers == 0,n.workers==j)$Energy.Meter
-  list_dr <- filter(subset_data_rapl, n.secondary.workers == 0,n.workers==j)$Total
+  list_dm <- filter(Meterdataset, n.secondary.workers == nsw,n.workers==nw)$Energy.Meter
+  list_dr <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==nw)$Total
 
   print(cor(unlist(list_dm),unlist(list_dr),method = c("pearson")))
   print(cor(unlist(list_dm),unlist(list_dr),method = c("spearman")))
   print("--")
-  print(test(unlist(list_dm),unlist(list_dr)))
-  
-  my_data <- dataMeter[1:30,c(1:2)]
+
+  my_data <- Meterdataset[1:30,c(1:2)]
   
   my_data$Meter <- unlist(list_dm)
   my_data$Rapl <- unlist(list_dr)
-  
   
   # plotting 
   # pearson
@@ -415,18 +409,148 @@ get_pear_t_spear_f_plot <- function(j,who){
 
 # threads 1,2,8,32,64
 # pearson
-get_pear_t_spear_f_plot(1,TRUE) #ggscatter does not like loops
-get_pear_t_spear_f_plot(2,TRUE)
-get_pear_t_spear_f_plot(8,TRUE)
-get_pear_t_spear_f_plot(32,TRUE)
-get_pear_t_spear_f_plot(64,TRUE)
+get_pear_t_spear_f_plot(0,1,TRUE,dataMeter) #ggscatter does not like loops
+get_pear_t_spear_f_plot(0,1,TRUE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,2,TRUE,dataMeter) 
+get_pear_t_spear_f_plot(0,2,TRUE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,8,TRUE,dataMeter)  
+get_pear_t_spear_f_plot(0,8,TRUE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,32,TRUE,dataMeter)  
+get_pear_t_spear_f_plot(0,32,TRUE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,64,TRUE,dataMeter) 
+get_pear_t_spear_f_plot(0,64,TRUE,dataMeter_ver2)
+
 
 # spearman
-get_pear_t_spear_f_plot(1,FALSE)
-get_pear_t_spear_f_plot(2,FALSE)
-get_pear_t_spear_f_plot(8,FALSE)
-get_pear_t_spear_f_plot(32,FALSE)
-get_pear_t_spear_f_plot(64,FALSE)
+get_pear_t_spear_f_plot(0,1,FALSE,dataMeter) #ggscatter does not like loops
+get_pear_t_spear_f_plot(0,1,FALSE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,2,FALSE,dataMeter) 
+get_pear_t_spear_f_plot(0,2,FALSE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,8,FALSE,dataMeter)  
+get_pear_t_spear_f_plot(0,8,FALSE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,32,FALSE,dataMeter)  
+get_pear_t_spear_f_plot(0,32,FALSE,dataMeter_ver2)
+
+get_pear_t_spear_f_plot(0,64,FALSE,dataMeter) 
+get_pear_t_spear_f_plot(0,64,FALSE,dataMeter_ver2)
+
+
+
+#Extremely bad results, but good news, we need to work with averages, so lets rewrite method
+
+
+NEW_get_list_with_avar_workers_Meter <- function(nsw,fromwho) {
+  list_ps <- list()
+  for (i in workers) {
+    new_dat <- filter(fromwho, n.secondary.workers == nsw,n.workers==i)$Energy.Meter
+    list_ps[i] <- mean(new_dat)
+  }
+  return(list_ps)
+}
+
+NEW_get_list_with_avar_workers_Rapl <- function(nsw) {
+  list_ps <- list()
+  for (i in workers) {
+    new_dat <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==i)$Total
+    list_ps[i] <- mean(new_dat)
+  }
+  return(list_ps)
+}
+
+
+for(k in list(0, 1, 2, 8, 64)){
+  cat("orMet --- THREADS: ",k," ---\n")
+  cat("pearson: ",cor(unlist(NEW_get_list_with_avar_workers_Meter(k,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(k)),method = c("pearson")),"\n"  )
+  cat("spearman: ",cor(unlist(NEW_get_list_with_avar_workers_Meter(k,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(k)),method = c("spearman")),"\n\n")
+
+}
+
+# goood
+
+for(k in list(0, 1, 2, 8, 64)){
+  cat("vers2 --- THREADS: ",k," ---\n")
+  cat("pearson: ",cor(unlist(NEW_get_list_with_avar_workers_Meter(k,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(k)),method = c("pearson")),"\n"  )
+  cat("spearman: ",cor(unlist(NEW_get_list_with_avar_workers_Meter(k,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(k)),method = c("spearman")),"\n\n")
+
+}
+
+# There is some correlation between them ~~~~~~
+
+
+# ----------------------------------- SIGNIFICANCE CHECK --------------------------------
+# AVERAGES
+# works faster
+wilcox.test(unlist(get_list_with_avar_workers_Meter(1)),unlist(get_list_with_avar_workers_Rapl(1)))
+wilcox.test(unlist(get_list_with_avar_workers_Meter(2)),unlist(get_list_with_avar_workers_Rapl(2)))
+wilcox.test(unlist(get_list_with_avar_workers_Meter(3)),unlist(get_list_with_avar_workers_Rapl(3)))
+wilcox.test(unlist(get_list_with_avar_workers_Meter(4)),unlist(get_list_with_avar_workers_Rapl(4)))
+wilcox.test(unlist(get_list_with_avar_workers_Meter(5)),unlist(get_list_with_avar_workers_Rapl(5)))
+
+# same but slower
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(0,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(0)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(1,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(1)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(2,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(2)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(8,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(8)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(64,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(64)))
+
+# version 2
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(0,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(0)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(1,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(1)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(2,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(2)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(8,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(8)))
+wilcox.test(unlist(NEW_get_list_with_avar_workers_Meter(64,dataMeter_ver2)),unlist(NEW_get_list_with_avar_workers_Rapl(64)))
+
+
+
+# NOT AVERAGES
+get_some_nsw_data_Wilcox <- function(nsw,nw,who,what){
+  # Subset data for current number of threads
+  new_dat <- filter(who, n.secondary.workers == nsw,n.workers==nw)[what]
+  new_dat2 <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==nw)$Total
+  
+  wilcox_test <- wilcox.test(unlist(new_dat),unlist(new_dat2), exact=FALSE)
+  if(wilcox_test$p.value > 0.05){cat(nw, wilcox_test$p.value,"\n" )}
+  else{cat(nw, wilcox_test$p.value,"  -","\n" )}
+  
+}
+
+for( p in workers){
+get_some_nsw_data_Wilcox(0,p,dataMeter,"Energy.Meter")
+
+}
+
+
+for(k in list(1, 2, 8, 64)){
+  for(p in workers){
+    get_some_nsw_data_Wilcox(k,p,dataMeter,"Energy.Meter")
+  }
+  print("-----------")
+}
+
+
+for(p in workers){
+  get_some_nsw_data_Wilcox(0,p,dataMeter_ver2,"Energy.Meter")
+}
+
+for(k in list(1, 2, 8, 64)){
+  for(p in workers){
+    get_some_nsw_data_Wilcox(k,p,dataMeter_ver2,"Energy.Meter")
+  }
+  print("-----------")
+}
+
+
+# wilcox.test(list_M,list_R)
+wilcox.test(RandM$Meter,RandM$Total) 
+
+
 
 
 # ----------------------------------- PLOTS SAVING --------------------------------

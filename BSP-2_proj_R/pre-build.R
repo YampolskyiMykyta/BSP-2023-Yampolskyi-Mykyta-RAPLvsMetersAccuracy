@@ -1,5 +1,6 @@
 dataRapl <- read.csv(file = 'dataRAPL.csv')
 dataMeter <- read.csv(file = 'dataMETER.csv')
+dataMeter_ver2 <- read.csv(file = 'dataMETER_ver2.csv')
 
 subset_data_rapl <- dataRapl[, c(9:11)]
 subset_data_rapl$Total <- rowSums(dataRapl[, c(9:11)])
