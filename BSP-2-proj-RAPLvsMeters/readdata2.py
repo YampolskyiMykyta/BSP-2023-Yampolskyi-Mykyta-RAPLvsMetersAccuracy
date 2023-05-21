@@ -113,8 +113,8 @@ def get_zip_startend_time(source, ind):
     return zip(starts, ends)
 
 
-def get_data_for_15_ver_2(a, b, source_dm ,rewritefile = False, mid_val_th=tuple(),approach=False):
-    """ Calculates, with the provided formulas, averages for the 1...64 threads
+def get_energy(a, b, source_dm ,rewritefile = False, mid_val_th=tuple(),approach=False):
+    """ Calculates energy, with the provided formulas, averages for the 1...64 threads
     in first 15 blocks and then returns the list with them
 
     formula: Energy[n] =  C9[n] x U x C5[n]
@@ -136,29 +136,33 @@ def get_data_for_15_ver_2(a, b, source_dm ,rewritefile = False, mid_val_th=tuple
     @:type rewritefile: boolean
     @:param mid_val_th: The tuple which contains energy consumption for each row
     @:type mid_val_th: tuple
+    @:param approach: The flag which indicates whether second approach is used
+    @:type approach: boolean
     @:returns: a list with averages for the 1...64 threads in first fifteen blocks if rewritefile is false, else mid_val_th with energy consumptions
     @:rtype: list / tuple
     """
+
+    # creating variables that will be used to store and manage data
     id_dict, energy_ress, mega_b, cc,mid_val_th_calc = 1, {i: [] for i in mass_threads}, b, 1,[]
 
-    ## id_dict, energy_ress, mega_b, cc, add_l = 1, {i: [] for i in mass_threads}, b, 1,[] #  wrong solution becase average frames
+    # run a loop to check if the power meter reading falls within the interval.
+    # interval
     for (start_a, end_a) in a:
         print(">>> ",cc," <<< ") if id_dict ==1 else None
         print(">>",id_dict, " <<")
         print("    ", start_a," --- ", end_a)
+        # power meter reading
         for (start_b, end_b) in b:
+            #          less conservative approach                         conservative approach     energy calculation
             if (approach and start_a <= start_b and start_b < end_a) or start_a <= start_b and end_b <= end_a:
                 if (rewritefile): mid_val_th_calc += [float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',','.')) * LINE_VOLTAGE * float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',','.'))]
                 else: energy_ress[id_dict] +=[float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',','.')) * LINE_VOLTAGE * float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',','.'))]
-                ## add_l += [float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',','.')) * LINE_VOLTAGE * float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',','.'))]
                 print("    " * 2, start_b, " -- ", end_b, " ~ ", float(str(source_dm["Average"][mega_b.index((start_b, end_b))]).replace(',', '.')), " * ", LINE_VOLTAGE, " * ", float(str(source_dm["Duration"][mega_b.index((start_b, end_b))]).split(":")[2].replace(',', '.')))
+            #    less conservative approach             conservative approach       data truncation
             if (approach and start_b >= end_a)   or start_b > start_a and end_b > end_a:
-                ## res = sum(add_l)/len(add_l) if len(add_l)!=0 else 0
-                ## energy_ress[id_dict]+=[res]
-                ## add_l=[]
-                ## b = b[b.index((start_b, end_b))-1:] check if -1 is needed
-                b = b[b.index((start_b, end_b)):] ## no difference
+                b = b[b.index((start_b, end_b)):]
                 break
+        # if we want rewrite the data we need to return energy for each row
         if (rewritefile):
             mid_val_th = mid_val_th + (sum(mid_val_th_calc),)
             mid_val_th_calc=[]
@@ -167,6 +171,7 @@ def get_data_for_15_ver_2(a, b, source_dm ,rewritefile = False, mid_val_th=tuple
         if id_dict == 66: id_dict = 1; cc += 1
     # return [sum(energy_ress[i])/len(energy_ress[i]) for i in mass_threads]
     if (rewritefile): return mid_val_th
+    # else we can return the average result
     return [sum(energy_ress[i])/15 for i in mass_threads]
 
 
@@ -212,23 +217,35 @@ def calc_avar(source):
 
 
 def rewriteFileMETERandDeltas(filename1, filename2, boolV2):
-    """ Rewrites data in files dataMETER and dataRAPL """
+    """ Rewrites data in files dataMETER and dataRAPL
+
+    @:param filename1: The file name for the Meter file
+    @:type filename1: String
+    @:param filename2: The file name for the RAPL file
+    @:type filename2: String
+    @:param boolV2: The flag which indicates whether second approach is used
+    @:type boolV2: boolean
+    """
     # getting time frames in time format for DatMeters and DatMetersTime tables
     (a_dt_1, b_dt_1) = get_time_in_time(dm_tup[0], dmt_tup[0])
     (a_dt_2, b_dt_2) = get_time_in_time(dm_tup[1], dmt_tup[1])
+
     # getting data from RAPL file to get deltas
     dr_data = get_res_data_rapl(dR)
 
+    # writing standard data columns
     with open(filename1, 'w', encoding='utf-8') as file:
         with open(filename2, 'w', encoding='utf-8') as file2:
             file.write("version,n-workers,n-secondary-workers,n-reservations,n-relations,n-queries,password-work-factor,Energy Meter\n")
             file2.write("version,n-workers,n-secondary-workers,n-reservations,n-relations,n-queries,password-work-factor,Energy Delta\n")
 
+    # getting data from Meter
     newtuple=tuple()
     for i in range(TRANS_MODEL):
-        newtuple = get_data_for_15_ver_2(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1,dm_tup[0], True, newtuple,boolV2)
-        newtuple = get_data_for_15_ver_2(a_dt_2[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_2, dm_tup[1], True, newtuple,boolV2)
+        newtuple = get_energy(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1,dm_tup[0], True, newtuple,boolV2)
+        newtuple = get_energy(a_dt_2[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_2, dm_tup[1], True, newtuple,boolV2)
 
+    # writing data in columns
     mt = 1
     with open(filename1, 'a', encoding='utf-8') as file:
         with open(filename2, 'a', encoding='utf-8') as file2:
@@ -236,7 +253,7 @@ def rewriteFileMETERandDeltas(filename1, filename2, boolV2):
                 for mi in range(ind_for_mi*LENGTH_FOR_METER_FILES*2,(ind_for_mi+1)* LENGTH_FOR_METER_FILES*2):
                     energyM = newtuple[mi]
                     file.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{energyM}\n")
-                    file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{abs(energyM - dr_data[mi])  }\n")
+                    file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{abs(energyM - dr_data[mi]-100)}\n")
                     mt += 1 if mt == 1 else 2
                     mt =1 if mt not in mass_threads else mt
 
@@ -259,7 +276,6 @@ def get_distribution(dD_frame):
     return dict_with_disbs
 
 
-# RMDe = [get_res_data_rapl(dR),dM["Energy Meter"],dD["Energy Delta"]]
 RMDe_2 = [get_res_data_rapl(dR),dM["Energy Meter"],dD["Energy Delta"],get_res_data_rapl(dR),dM_v2["Energy Meter"],dD_v2["Energy Delta"]]
 
 def print_for_each_in_RMD(frame):
@@ -290,7 +306,9 @@ def print_for_each_in_RMD(frame):
             if ((c+1)%4)==0: print('{:>14}'.format(" "), end="")
             print('{:>22}'.format( len(j[i])),end="")
 
-    means = [sum(i)/len(i) for i in datamass]
+    means = [calculate_mean(i) for i in datamass]
+    #means = [sum(i)/len(i) for i in datamass]
+    # print("bib " ,calculate_mean)
     print("\n\nMean:    ",end="")
     for c,i in enumerate(means):
         if ((c+1)%4)==0: print('{:>14}'.format(" "), end="")
@@ -304,7 +322,7 @@ def print_for_each_in_RMD(frame):
 
 
 def get_everything_about_RMD():
-    """ Prints min, max and distribution for RAPL, Meter and Deltas for original and txacts """
+    """ Prints min, max and distribution for RAPL, Meter and Deltas for original and txacts. """
     colors,space = [Fore.BLUE, Fore.RED, Fore.GREEN, Fore.CYAN, Fore.MAGENTA,Fore.YELLOW],138
     print(colors[0] + " --- ORIGINAL: ","-"*space)
     print_for_each_in_RMD([0,LENGTH_FOR_METER_FILES*2])
@@ -317,40 +335,26 @@ def get_everything_about_RMD():
 
 
 def show_plot(flag_for_ver_2):
-    """ Shows graphical representation of data from RAPL and METER"""
-    # getting the averages for the 15 blocks for two files and
-    # saving them into a dictionary with key saying if it is original(1) or txact(>1)
-    # mass_with_ress_Meter = {(i+1): (get_data_for_15(a_dt_1[LENGTH_FOR_METER_FILES*i:LENGTH_FOR_METER_FILES*(i+1)], b_dt_1, dm), get_data_for_15(a_dt_2[LENGTH_FOR_METER_FILES * i:LENGTH_FOR_METER_FILES *(i+1)], b_dt_2, dm2)) for i in range(5)}
-    #
-    # # because we need average for 30 blocks just summing respectful results and divide by 2 (15+15 = 30 blocks)
-    # dict_with_Meter = {}
-    # for j in range(1, TRANS_MODEL+1):
-    #     dict_with_Meter[j] = [(mass_with_ress_Meter[j][0][i] + mass_with_ress_Meter[j][1][i])/2 for i in range(THREADS_AM)]
+    """ Shows graphical representation of data from RAPL and METER
 
-    ## example with data after calculations (problems with average)
-    ## mass_with_ress_METER = [i for i in dM["Energy Meter"]]
-    ##
-    ## dict_with_Meter = {}
-    ## for j in range(1,TRANS_MODEL+1):
-    ##     dict_with_Meter[j] = calc_avar(mass_with_ress_METER[LENGTH_FOR_RAPL_FILES*(j-1):LENGTH_FOR_RAPL_FILES*j])
-    ##
-    ## Result Nothing changed
-
+    @:param flag_for_ver_2: The flag which indicates when the data from less conservative approach is used
+    @:type flag_for_ver_2: boolean
+    """
     # getting data from RAPL and Meter and calculating averages for all 30 blocks (5)
-
     if flag_for_ver_2: mass_with_ress_RAPL,mass_with_ress_METER = get_res_data_rapl(dR),[i for i in dM_v2["Energy Meter"]]
     else:mass_with_ress_RAPL,mass_with_ress_METER = get_res_data_rapl(dR),[i for i in dM["Energy Meter"]]
 
+    # saving them into a dictionary with key saying if it is original(1) or txact(>1)
     dict_with_Meter,dict_with_RAPL = {},{}
     for j in range(1,TRANS_MODEL+1):
         dict_with_RAPL[j] = calc_avar(mass_with_ress_RAPL[LENGTH_FOR_RAPL_FILES*(j-1):LENGTH_FOR_RAPL_FILES*j])
         dict_with_Meter[j] = calc_avar(mass_with_ress_METER[LENGTH_FOR_RAPL_FILES * (j - 1):LENGTH_FOR_RAPL_FILES * j])
 
     # Creating plots with all collected data
-    figure, axis = plt.subplots(2)
-
     # METERS PLOT (TOP)
     # RAPL PLOT (BOTTOM)
+    figure, axis = plt.subplots(2)
+
     # colors
     colors= ['b','r','g','c','m','indigo','k','y','darkorange']
 
@@ -361,13 +365,13 @@ def show_plot(flag_for_ver_2):
         axis[0].plot(mass_threads, dict_with_Meter[i+1], colors[i], label=f"txact s{n_secondary_workers[i]}")
         axis[1].plot(mass_threads, dict_with_RAPL[i+1], colors[i], label=f"txact s{n_secondary_workers[i]}")
 
-    axis[0].set_title("Meters data (origin blue) energy consumption 30")
+    axis[0].set_title("Average Meters data energy consumption 30")
     # axis[0].set_xlabel('1-64 threads')
     axis[0].set_ylabel('energy consumption (J)')
     axis[0].legend()
 
     # axis[1].set_title("RAPL data (origin magenta) energy consumtion 30")
-    axis[1].set_xlabel('RAPL data (origin magenta) energy consumption 30')
+    axis[1].set_xlabel('Average RAPL data energy consumption 30')
     axis[1].set_ylabel('energy consumption (J)')
 
     axis[1].legend()
@@ -391,7 +395,8 @@ def get_plot_orig_time_rapl_avar():
     plt.legend()
     plt.show()
 
-def get_plot_orig_time_rapl_median():
+
+def get_speedup_rapl_median():
     """ Shows speed-up for each number of threads in RAPL using medians """
     dict_with_RAPL,txacts = {i:[] for i in range(1,TRANS_MODEL+1)},{}
     for j in range(1, TRANS_MODEL + 1):
@@ -428,6 +433,7 @@ def check_data_before_meter_start(dmt,dM_data):
     for i in dM_data.loc:
         if datetime.datetime.strptime(i["Stop Time"].split()[1], '%H:%M:%S,%f') > timelim1:
             break
+        print(float(str(i["Average"]).replace(',', '.')) * LINE_VOLTAGE * float(str(i["Duration"]).split(":")[2].replace(',', '.')))
         energy_consumed += [float(str(i["Average"]).replace(',', '.')) * LINE_VOLTAGE * float(str(i["Duration"]).split(":")[2].replace(',', '.'))]
     return sum(energy_consumed)/len(energy_consumed)
 
@@ -444,6 +450,7 @@ def check_data_after_meter_start(dmt,dM_data):
     for i in dM_data.values[::-1][1:]:
         if datetime.datetime.strptime(i[2].split()[1], '%H:%M:%S,%f') < timelim1:
             break
+        print(float(str(i[6]).replace(',', '.')) * LINE_VOLTAGE * float(str(i[3]).split(":")[2].replace(',', '.')))
         energy_consumed += [float(str(i[6]).replace(',', '.')) * LINE_VOLTAGE * float(str(i[3]).split(":")[2].replace(',', '.'))]
     return sum(energy_consumed)/len(energy_consumed)
 
@@ -456,3 +463,25 @@ def get_data_before_and_after():
     print("\nAfter")
     for dmt, dm in zip(dmt_tup, dm_tup):
         print(check_data_after_meter_start(dmt, dm))
+
+
+def calculate_mean(massframe):
+    """ Calculates energy average consumption for each number of threads ynd then sums up the results and gives energy.
+
+    @:param massframe: table with all table (RAPL / Meter / Deltas) frame execution
+    @:type massframe: pandas type
+
+    """
+
+    k = list(massframe)
+    list_mean,list_for_sum,list_for_sum_all = [],[],[]
+    p = int(len(k)/990)
+    for s in range(0,p):
+        for j in range(0,33):
+            for i in range(0,30):
+                list_mean += [k[((i*33)+j)+(s*990)]]
+            list_for_sum += [sum(list_mean)/len(list_mean)]
+            list_mean = []
+        list_for_sum_all += [sum(list_for_sum)]
+        list_for_sum = []
+    return sum(list_for_sum_all)

@@ -313,19 +313,59 @@ get_some_nsw_data <- function(nsw,nw,who,what){
     
     # if(nw==1){print(new_dat)}
     
+    # shapiro_test <- shapiro.test(unlist(new_dat))
+    # if(shapiro_test$statistic > 0.1 ){
+    # if(shapiro_test$p.value > 0.05 ){cat(nw, " W = ", shapiro_test$statistic," p.val = ", shapiro_test$p.value,"       +","\n" )}
+    # else{cat(nw, " W = ",  shapiro_test$statistic," p.val = ", shapiro_test$p.value,"   -","\n" )}
+
     shapiro_test <- shapiro.test(unlist(new_dat))
-    if(shapiro_test$p.value > 0.05){cat(nw, shapiro_test$p.value,"\n" )}
-    else{cat(nw, shapiro_test$p.value,"  -","\n" )}
-    
-    if(shapiro_test$p.value > 0.05){
+    if(shapiro_test$statistic > 0.1 ){
+    if(shapiro_test$p.value > 0.05 ){cat(nw, " p.val = ", shapiro_test$p.value,"       +","\n" )}
+    else{cat(nw, " p.val = ", shapiro_test$p.value,"   -","\n" )}
+
+        
+    if(shapiro_test$p.value == 0.05){
     qqnorm( unlist(new_dat))
     qqline(unlist(new_dat))
+    }}
+    else{
+      cat(nw,"\n")
     }
 }
 
+
+
+
+get_some_nsw_data_avar <- function(nsw,who,what){
+  # Subset data for current number of threads
+  list_mean <- list()
+  
+  for(i in workers){
+  new_dat <- filter(who, n.secondary.workers == nsw,n.workers==i)[what]
+  list_mean[i] <- mean(unlist(new_dat))
+  }
+  
+  shapiro_test <- shapiro.test(unlist(new_dat))
+  if(shapiro_test$statistic > 0.1 ){
+    if(shapiro_test$p.value > 0.05 ){cat(nsw, " p.val = ", shapiro_test$p.value,"       +","\n" )}
+    else{cat(nsw, " p.val = ", shapiro_test$p.value,"   -","\n" )}
+    
+    
+    if(shapiro_test$p.value == 0.05){
+      qqnorm( unlist(new_dat))
+      qqline(unlist(new_dat))
+    }}
+  else{
+    cat(nw,"\n")
+  }
+}
+
+
+
+
 # WORKING WITH ORIGINAL:
 
-# Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
+# Perform Shapiro-Wilk normality test for all number of threads
 # with q-q plots
 
 for(p in workers){
@@ -334,44 +374,59 @@ for(p in workers){
 
 # WORKING WITH TXACTs:
 
-# Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
+# Perform Shapiro-Wilk normality test for all number of threads
 # with q-q plots
 
-for(k in list(1, 2, 8, 64)){
+for(k in list(0, 1, 2, 8, 64)){
   cat("\n\n---SEC.WORK ",k," ---\n\n")
   for(p in workers){
     get_some_nsw_data(k,p,dataMeter,"Energy.Meter")
   }
-  
 }
+
+for(k in list(0, 1, 2, 8, 64)){
+  cat("\n\n---SEC.WORK ",k," ---\n\n")
+    get_some_nsw_data_avar(k,dataMeter,"Energy.Meter")
+
+}
+
+
 
 
 # ------------------------------ RAPL -----------------------------
 
 # WORKING WITH ORIGINAL:
 
-# Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
+# Perform Shapiro-Wilk normality test for all number of threads equals
 # with q-q plots
 
-for(p in list(1, 2, 8,32, 64)){
+for(p in workers){
   get_some_nsw_data(0,p,subset_data_rapl,"Total")
 }
 
 # WORKING WITH TXACTs:
 
-# Perform Shapiro-Wilk normality test for number of threads equals to 1, 2, 8, 32, 64
+# Perform Shapiro-Wilk normality test for all number of threads equals
 # with q-q plots.
 
-for(k in list(1, 2, 8, 64)){
-  for(p in list(1, 2, 8,32, 64)){
+for(k in list(0, 1, 2, 8, 64)){
+  cat("\n\n---SEC.WORK ",k," ---\n\n")
+  for(p in workers){
     get_some_nsw_data(k,p,subset_data_rapl,"Total")
   }
-  print("-----------")
+}
+
+for(k in list(0, 1, 2, 8, 64)){
+  cat("\n\n---SEC.WORK ",k," ---\n\n")
+  
+    get_some_nsw_data_avar(k,subset_data_rapl,"Total")
+  
 }
 
 
 # ------------------------------- METER vs RAPL correlation ----------------------
 
+## NOT AVERAGES
 # WORKING WITH ORIGINAL:
 # check correlation with Pearson and spearman for threads 1,2,8,32,64
 
@@ -380,37 +435,134 @@ get_pear_t_spear_f_plot <- function(nsw,nw,who,Meterdataset){
 
   list_dm <- filter(Meterdataset, n.secondary.workers == nsw,n.workers==nw)$Energy.Meter
   list_dr <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==nw)$Total
+  p <-  cor(unlist(list_dm),unlist(list_dr),method = c("pearson"))
+  sp <-  cor(unlist(list_dm),unlist(list_dr),method = c("spearman"))
+  if(p > -10){
+    cat(nw,p, "   p  + \n")
+  }
+  if(sp > -10){
+    cat(nw,sp, "   sp  + \n")
+  }
+  # cat(nw,p, "\n")
+  # cat(nw, cor(unlist(list_dm),unlist(list_dr),method = c("spearman")), "\n")
+ # print("--")
 
-  print(cor(unlist(list_dm),unlist(list_dr),method = c("pearson")))
-  print(cor(unlist(list_dm),unlist(list_dr),method = c("spearman")))
-  print("--")
+  # my_data <- Meterdataset[1:30,c(1:2)]
+  # 
+  # my_data$Meter <- unlist(list_dm)
+  # my_data$Rapl <- unlist(list_dr)
+  
+  # plotting 
+  # pearson
+  # if(who == TRUE){
+  #   ggscatter(my_data, x = "Meter", y = "Rapl", 
+  #             add = "reg.line", conf.int = TRUE, 
+  #             cor.coef = TRUE, cor.method = "pearson",
+  #             xlab = "Joules M p", ylab = "Joules R p")
+  # }
+  # else{
+  #   # spearman
+  #   ggscatter(my_data, x = "Meter", y = "Rapl",
+  #             add = "reg.line", conf.int = TRUE,
+  #             cor.coef = TRUE, cor.method = "spearman",
+  #             xlab = "Joules M s", ylab = "Joules R s")
+  # }
+}
 
-  my_data <- Meterdataset[1:30,c(1:2)]
+get_pear_t_spear_f_plot_new <- function(nsw,who,Meterdataset){
+  list_dr <- list()
+  list_dm <- list()
+  
+  for(i in workers){
+    new_dat <- filter(Meterdataset, n.secondary.workers == nsw,n.workers==i)$Energy.Meter
+    list_dm[i] <- median(unlist(new_dat))
+    new_dat2 <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==i)$Total
+    list_dr[i] <- median(unlist(new_dat2))
+  }
+  
+  p <-  cor(unlist(list_dm),unlist(list_dr),method = c("pearson"))
+  sp <-  cor(unlist(list_dm),unlist(list_dr),method = c("spearman"))
+  if(p > -10){
+    cat(p, "   p  + \n")
+  }
+  if(sp > -10){
+    cat(sp, "   sp  + \n")
+  }
+  my_data <- Meterdataset[1:33,c(1:2)]
+
+  my_data$Meter <- unlist(list_dm)
+  my_data$Rapl <- unlist(list_dr)
+  
+  if(who == TRUE){
+    print("hello")
+    ggscatter(my_data, x = "Meter", y = "Rapl",
+              add = "reg.line", conf.int = TRUE,
+              cor.coef = TRUE, cor.method = "spearman",
+              xlab = "Joules M p", ylab = "Joules R p")
+  }
+}
+
+
+get_spear_corr_plot <- function(who,Meterdataset){
+  list_dr <- list()
+  list_dm <- list()
+  k <- 0
+  ind <- 1
+for(nsw in list(0,1,2,8,64)){
+  # print(k)
+  for(i in workers){
+    new_dat <- filter(Meterdataset, n.secondary.workers == nsw,n.workers==i)$Energy.Meter
+    list_dm[ind+(33*k)] <- median(unlist(new_dat))
+    new_dat2 <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==i)$Total
+    list_dr[ind+(33*k)] <- median(unlist(new_dat2))
+    ind <- ind+1
+    # print(ind+(33*k))
+  
+  }
+  ind <- 1
+  k<-k+1
+} 
+  # print(unlist(list_dm))
+  # print(length(list_dr))
+  sp <-  cor(unlist(list_dm),unlist(list_dr),method = c("spearman"))
+  print(sp)
+
+  if(sp > -10){
+    cat(sp, "   sp  + \n")
+  }
+  my_data <- Meterdataset[1:165,c(1:2)]
   
   my_data$Meter <- unlist(list_dm)
   my_data$Rapl <- unlist(list_dr)
   
-  # plotting 
-  # pearson
   if(who == TRUE){
-    ggscatter(my_data, x = "Meter", y = "Rapl", 
-              add = "reg.line", conf.int = TRUE, 
-              cor.coef = TRUE, cor.method = "pearson",
-              xlab = "Joules M p", ylab = "Joules R p")
-  }
-  else{
-    # spearman
     ggscatter(my_data, x = "Meter", y = "Rapl",
               add = "reg.line", conf.int = TRUE,
               cor.coef = TRUE, cor.method = "spearman",
-              xlab = "Joules M s", ylab = "Joules R s")
+              xlab = "Joules M p", ylab = "Joules R p")
   }
 }
+
+get_spear_corr_plot(TRUE,dataMeter_ver2)
+#get_spear_corr_plot(TRUE,dataMeter)
 
 # threads 1,2,8,32,64
 # pearson
 get_pear_t_spear_f_plot(0,1,TRUE,dataMeter) #ggscatter does not like loops
-get_pear_t_spear_f_plot(0,1,TRUE,dataMeter_ver2)
+
+for(k in list(0, 1, 2, 8, 64)){
+  cat("\n\n---SEC.WORK ",k," ---\n\n")
+    get_pear_t_spear_f_plot_new(k,TRUE,dataMeter)
+    #get_some_nsw_data(k,p,subset_data_rapl,"Total")
+}
+
+
+for(k in list(0, 1, 2, 8, 64)){
+  cat("\n\n---SEC.WORK ",k," ---\n\n")
+    get_pear_t_spear_f_plot_new(k,TRUE,dataMeter_ver2)
+    #get_ome_nsw_data(k,p,subset_data_rapl,"Total")
+}
+
 
 get_pear_t_spear_f_plot(0,2,TRUE,dataMeter) 
 get_pear_t_spear_f_plot(0,2,TRUE,dataMeter_ver2)
@@ -439,11 +591,73 @@ get_pear_t_spear_f_plot(0,32,FALSE,dataMeter)
 get_pear_t_spear_f_plot(0,32,FALSE,dataMeter_ver2)
 
 get_pear_t_spear_f_plot(0,64,FALSE,dataMeter) 
-get_pear_t_spear_f_plot(0,64,FALSE,dataMeter_ver2)
+
+
+get_pear_t_spear_f_plot_new(0,TRUE,dataMeter_ver2)
+get_pear_t_spear_f_plot_new(1,TRUE,dataMeter_ver2)
+get_pear_t_spear_f_plot_new(2,TRUE,dataMeter_ver2)
+get_pear_t_spear_f_plot_new(8,TRUE,dataMeter_ver2)
+get_pear_t_spear_f_plot_new(64,TRUE,dataMeter_ver2)
 
 
 
-#Extremely bad results, but good news, we need to work with averages, so lets rewrite method
+
+get_pear_t_spear_f_plot_accord_to_norm <- function(nsw,nw){
+  list_dr <- list()
+  list_dm <- list()
+  
+  list_dm <- filter(dataMeter, n.secondary.workers == nsw,n.workers==nw)$Energy.Meter
+  list_dr <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==nw)$Total
+  
+  
+  shapiro_test_Meter <- shapiro.test(unlist(list_dm))
+  shapiro_test_Rapl <- shapiro.test(unlist(list_dr))
+  
+  if(shapiro_test_Meter$statistic > 0.7 && shapiro_test_Rapl$statistic >0.7){
+    if(shapiro_test_Meter$p.value > 0.05 && shapiro_test_Rapl$p.value > 0.05){
+      
+     # cat(nw, " W = ", shapiro_test_Meter$statistic," p.val = ", shapiro_test$p.value,"       +","\n" )
+      
+      cat(nw," ",cor(unlist(list_dm),unlist(list_dr),method = c("pearson")),"\n")
+      
+      }
+    else if(shapiro_test_Meter$p.value < 0.05 && shapiro_test_Rapl$p.value < 0.05){
+      
+      # cat(nw, " W = ",  shapiro_test$statistic," p.val = ", shapiro_test$p.value,"   -","\n" )
+      
+      cat(nw," ",cor(unlist(list_dm),unlist(list_dr),method = c("spearman")),"\n")
+    }
+    else{
+      cat(nw,"\n")
+    }
+  }
+  
+  # my_data <- dataMeter_ver2[1:30,c(1:2)]
+  # 
+  # my_data$Meter <- unlist(list_dm)
+  # my_data$Rapl <- unlist(list_dr)
+  # 
+  # # plotting 
+  # # pearson
+  # if(who == TRUE){
+  #   ggscatter(my_data, x = "Meter", y = "Rapl", 
+  #             add = "reg.line", conf.int = TRUE, 
+  #             cor.coef = TRUE, cor.method = "pearson",
+  #             xlab = "Joules M p", ylab = "Joules R p")
+  # }
+  # else{
+  #   # spearman
+  #   ggscatter(my_data, x = "Meter", y = "Rapl",
+  #             add = "reg.line", conf.int = TRUE,
+  #             cor.coef = TRUE, cor.method = "spearman",
+  #             xlab = "Joules M s", ylab = "Joules R s")
+  # }
+}
+for( i in workers){
+get_pear_t_spear_f_plot_accord_to_norm(2,i)
+}
+
+## AVERAGES
 
 
 NEW_get_list_with_avar_workers_Meter <- function(nsw,fromwho) {
@@ -452,6 +666,23 @@ NEW_get_list_with_avar_workers_Meter <- function(nsw,fromwho) {
     new_dat <- filter(fromwho, n.secondary.workers == nsw,n.workers==i)$Energy.Meter
     list_ps[i] <- mean(new_dat)
   }
+  return(list_ps)
+}
+
+SPAG <- function(nsw,meter) {
+  list_mn <- list()
+  list_ra <- list()
+  for (i in workers) {
+    new_dat <- filter(meter, n.secondary.workers == nsw,n.workers==i)$Energy.Meter
+    new_dat2 <- filter(subset_data_rapl, n.secondary.workers == nsw,n.workers==i)$Total
+    list_me[i] <- mean(new_dat)
+    list_ra[i] <- mean(new_dat2)
+  }
+  shapiro_test_Meter <- shapiro.test(unlist(list_me))
+  shapiro_test_Rapl <- shapiro.test(unlist(list_ra))
+  
+  
+  
   return(list_ps)
 }
 
@@ -466,7 +697,7 @@ NEW_get_list_with_avar_workers_Rapl <- function(nsw) {
 
 
 for(k in list(0, 1, 2, 8, 64)){
-  cat("orMet --- THREADS: ",k," ---\n")
+  cat("ver1 --- THREADS: ",k," ---\n")
   cat("pearson: ",cor(unlist(NEW_get_list_with_avar_workers_Meter(k,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(k)),method = c("pearson")),"\n"  )
   cat("spearman: ",cor(unlist(NEW_get_list_with_avar_workers_Meter(k,dataMeter)),unlist(NEW_get_list_with_avar_workers_Rapl(k)),method = c("spearman")),"\n\n")
 
@@ -549,8 +780,6 @@ for(k in list(1, 2, 8, 64)){
 
 # wilcox.test(list_M,list_R)
 wilcox.test(RandM$Meter,RandM$Total) 
-
-
 
 
 # ----------------------------------- PLOTS SAVING --------------------------------
