@@ -253,7 +253,8 @@ def rewriteFileMETERandDeltas(filename1, filename2, boolV2):
                 for mi in range(ind_for_mi*LENGTH_FOR_METER_FILES*2,(ind_for_mi+1)* LENGTH_FOR_METER_FILES*2):
                     energyM = newtuple[mi]
                     file.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{energyM}\n")
-                    file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{abs(energyM - dr_data[mi]-100)}\n")
+                    file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{abs(energyM - dr_data[mi] - 100)}\n")
+                    #file2.write(f"{'original' if nsw == 0 else 'txact'},{mt},{nsw},1000,50,10,5,{ 0 if energyM - 100 < 0 else energyM - 100 }\n")
                     mt += 1 if mt == 1 else 2
                     mt =1 if mt not in mass_threads else mt
 
@@ -306,8 +307,8 @@ def print_for_each_in_RMD(frame):
             if ((c+1)%4)==0: print('{:>14}'.format(" "), end="")
             print('{:>22}'.format( len(j[i])),end="")
 
-    means = [calculate_mean(i) for i in datamass]
-    #means = [sum(i)/len(i) for i in datamass]
+    #means = [calculate_mean(i) for i in datamass]
+    means = [sum(i)/len(i) for i in datamass]
     # print("bib " ,calculate_mean)
     print("\n\nMean:    ",end="")
     for c,i in enumerate(means):
@@ -433,7 +434,7 @@ def check_data_before_meter_start(dmt,dM_data):
     for i in dM_data.loc:
         if datetime.datetime.strptime(i["Stop Time"].split()[1], '%H:%M:%S,%f') > timelim1:
             break
-        print(float(str(i["Average"]).replace(',', '.')) * LINE_VOLTAGE * float(str(i["Duration"]).split(":")[2].replace(',', '.')))
+        #print(float(str(i["Average"]).replace(',', '.')) * LINE_VOLTAGE * float(str(i["Duration"]).split(":")[2].replace(',', '.')))
         energy_consumed += [float(str(i["Average"]).replace(',', '.')) * LINE_VOLTAGE * float(str(i["Duration"]).split(":")[2].replace(',', '.'))]
     return sum(energy_consumed)/len(energy_consumed)
 
@@ -450,7 +451,7 @@ def check_data_after_meter_start(dmt,dM_data):
     for i in dM_data.values[::-1][1:]:
         if datetime.datetime.strptime(i[2].split()[1], '%H:%M:%S,%f') < timelim1:
             break
-        print(float(str(i[6]).replace(',', '.')) * LINE_VOLTAGE * float(str(i[3]).split(":")[2].replace(',', '.')))
+        #print(float(str(i[6]).replace(',', '.')) * LINE_VOLTAGE * float(str(i[3]).split(":")[2].replace(',', '.')))
         energy_consumed += [float(str(i[6]).replace(',', '.')) * LINE_VOLTAGE * float(str(i[3]).split(":")[2].replace(',', '.'))]
     return sum(energy_consumed)/len(energy_consumed)
 
@@ -472,7 +473,6 @@ def calculate_mean(massframe):
     @:type massframe: pandas type
 
     """
-
     k = list(massframe)
     list_mean,list_for_sum,list_for_sum_all = [],[],[]
     p = int(len(k)/990)

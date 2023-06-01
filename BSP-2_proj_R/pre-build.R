@@ -1,3 +1,9 @@
+'''
+    This file has been specifically created to address a common challenge when working with environments:
+    the loss of initial variables upon closure or the potential permanent loss of critical information
+    during the data analysis process. By utilizing this file, you can pre-build the necessary data,
+    ensuring that you can promptly commence your data analysis without any disruptions or risk of irretrievable data loss.
+'''
 dataRapl <- read.csv(file = 'dataRAPL.csv')
 dataMeter <- read.csv(file = 'dataMETER.csv')
 dataMeter_ver2 <- read.csv(file = 'dataMETER_ver2.csv')
