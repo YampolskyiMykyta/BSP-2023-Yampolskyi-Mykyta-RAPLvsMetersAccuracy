@@ -24,7 +24,7 @@ To use this project, you will need to have Python, R and the required packages i
 Clone the repository: git clone https://github.com/YampolskyiMykyta/BSP-2023-Yampolskyi-Mykyta-RAPLvsMetersAccuracy.git  
 In Python:    
 `pip install pandas`  
-`pip install matplotlib` 
+`pip install matplotlib`
 `pip install datetime`  
 in R:    
 Install the required packages by running install.packages(c("package1", "package2")), and run pre-build file.
